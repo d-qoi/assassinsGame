@@ -66,6 +66,12 @@ public class FileInout extends PlayerIn {
 		
 
 	}
+	
+	@Override
+	public void sendMessage(Message message) {
+		this.messagesOut.add(message);
+		
+	}
 
 	public class WriteFileOut implements Runnable {
 		private FileWriter file;
@@ -146,5 +152,7 @@ public class FileInout extends PlayerIn {
 		this.writeRun.terminate();
 		System.out.println(this.writer.isAlive());
 	}
+
+	
 
 }
