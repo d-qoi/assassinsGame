@@ -11,8 +11,8 @@ import java.util.ArrayDeque;
  */
 
 public abstract class PlayerIn {
-	private long messagesReceived;
-	private long messagesSent;
+	public long messagesReceived;
+	public long messagesSent;
 	
 	/**
 	 * Returns the number of messages received. 
