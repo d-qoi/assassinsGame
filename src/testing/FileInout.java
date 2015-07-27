@@ -1,10 +1,13 @@
 package testing;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Date;
+import java.util.Scanner;
+
 import org.apache.commons.io.input.Tailer;
 import org.apache.commons.io.input.TailerListener;
 import org.apache.commons.io.input.TailerListenerAdapter;
@@ -18,7 +21,9 @@ public class FileInout extends PlayerIn {
 	private ArrayDeque<Message> messagesIn;
 	private ArrayDeque<Message> messagesOut;
 	private Date date;
-	private Thread tailer;
+	private Tailer tailer;
+	TailerListener listener;
+	private WriteFileOut writeRun;
 	private Thread writer;
 
 	public FileInout(File messageFileIn, File messageFileOut) {
@@ -28,15 +33,14 @@ public class FileInout extends PlayerIn {
 		messagesOut = new ArrayDeque<>();
 		date = new Date();
 
-		TailerListener listener = new Tailerhandler();
-		tailer = new Thread(new Tailer(fileIn, listener));
-		tailer.setDaemon(true);
+		listener = new Tailerhandler();
 
 		try {
-			writer = new Thread(new WriteFileOut());
+			this.writeRun = new WriteFileOut();
+			this.writer = new Thread(writeRun);
 		} catch (IOException e) {
-			stop();
 			e.printStackTrace();
+			stop();
 			System.exit(1);
 		}
 
@@ -57,37 +61,59 @@ public class FileInout extends PlayerIn {
 	@Override
 	public void sendMessages(ArrayDeque<Message> toSend) {
 		// TODO Auto-generated method stub
-		this.messagesSent += toSend.size();
+		this.messagesOut.addAll(toSend);
+		toSend.clear();
+		
 
 	}
 
-	private class WriteFileOut implements Runnable {
+	public class WriteFileOut implements Runnable {
 		private FileWriter file;
 		private Message temp;
+		private boolean running = true;
 
 		public WriteFileOut() throws IOException {
 			file = new FileWriter(fileOut, true);
+			
+		}
+		
+		public void terminate() {
+			running = false;
+			try {
+				file.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 
 		@Override
 		public void run() {
-			while (true) {
+			while (running) {
 				while (!messagesOut.isEmpty()) {
 					temp = messagesOut.poll();
-					if (temp != null)
+					if (temp != null) {
 						try {
-							file.write(String.format("%S \t %S%N",
-									date.getTime(), temp.toString()));
+							file.write(String.format("%S    %S%n",
+									date.toString(), temp.toString()));
+							//System.out.printf("writing %S   %S\n",
+							//		date.getTime(), temp.toString());
 						} catch (IOException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
+						finally {
+							//System.out.println("writing");
+							messagesSent++;
+							date = new Date();
+						}
+					}
 				}
 				try {
 					Thread.sleep(5000);
+					//System.out.println("LOOP");
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
-					e.printStackTrace();
 				}
 			}
 
@@ -95,24 +121,30 @@ public class FileInout extends PlayerIn {
 
 	}
 
-	private class Tailerhandler extends TailerListenerAdapter {
+	public class Tailerhandler extends TailerListenerAdapter {
 		public void handle(String line) {
 			String[] message = line.split(":: ");
 			assert (message.length == 2);
 			messagesIn.offer(new Message(message[0], message[1]));
+			messagesReceived++;
+			//System.out.println("got");
 		}
 	}
 
 	@Override
 	public void start() {
 		this.writer.start();
-		this.tailer.start();
+		this.tailer = Tailer.create(fileIn, listener);
+		System.out.println(tailer.getFile() + " " + writer.isAlive());
+		
 	}
 
 	@Override
 	public void stop() {
-		this.tailer.interrupt();
+		this.tailer.stop();
 		this.writer.interrupt();
+		this.writeRun.terminate();
+		System.out.println(this.writer.isAlive());
 	}
 
 }
