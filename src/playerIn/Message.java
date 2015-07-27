@@ -8,4 +8,8 @@ public class Message {
 		this.id = id;
 		this.content = content;
 	}
+	
+	public String toString() {
+		return "id:"+this.id+", content:"+this.content;
+	}
 }

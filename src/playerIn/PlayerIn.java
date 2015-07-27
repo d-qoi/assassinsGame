@@ -52,5 +52,14 @@ public abstract class PlayerIn {
 	 * @param toSend
 	 */
 	public abstract void sendMessages(ArrayDeque<Message> toSend);
-
+	
+	/**
+	 * Start the threads
+	 */
+	public abstract void start();
+	
+	/**
+	 * Stops the threads
+	 */
+	public abstract void stop();
 }
