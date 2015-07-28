@@ -6,7 +6,7 @@ public class Message {
 	
 	public Message(String id, String content) {
 		this.id = id;
-		this.content = content;
+		this.content = content.toLowerCase();
 	}
 	
 	public String toString() {

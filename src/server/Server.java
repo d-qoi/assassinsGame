@@ -2,6 +2,7 @@ package server;
 
 import java.io.File;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -11,7 +12,6 @@ import java.util.TreeMap;
 
 import playerIn.Message;
 import playerIn.PlayerIn;
-import testing.FileInout;
 
 public class Server {
 
@@ -25,15 +25,18 @@ public class Server {
 	private Map<String, Integer> kills;
 	private Map<String, String> waitingMsgConf;
 	private Set<String> leaving;
-	
+
 	private Map<String, String> privilege;
-	
+
 	private PlayerIn playerCommunication;
-	private Text text;	
-	
+	private Text text;
+
 	public boolean acceptingPlayers = true;
-	
-	public Server() {
+
+	public HandleMessages mainLoopRunnable;
+	public Thread mainLoop;
+
+	public Server(PlayerIn playerCommunication) {
 		username_to_cell = new HashMap<>();
 		cell_to_username = new HashMap<>();
 		registered = new HashSet<>();
@@ -44,64 +47,67 @@ public class Server {
 		kills = new HashMap<>();
 		waitingMsgConf = new HashMap<>();
 		leaving = new HashSet<>();
-		
+
 		privilege = new HashMap<>();
+
+		this.playerCommunication = playerCommunication;
+
+		mainLoopRunnable = new HandleMessages();
+		mainLoop = new Thread(mainLoopRunnable);
 		
-		/**
-		 * CHANGE THIS WHEN THE TESTING IS OVER
-		 */
-		File inFile = new File("src/testing/testFile.txt");
-		File outFile = new File("src/testing/outfile.txt");
-		outFile.delete();
-		playerCommunication = new FileInout(inFile, outFile);
-		/**
-		 * CHANGE THIS WHEN THE TESTING IS OVER
-		 */
-		
-		playerCommunication.start();
-		
-		Scanner sc = new Scanner(System.in);
-		sc.nextLine();
-		sc.close();
-		playerCommunication.stop();
+		text = new Text();
+
 	}
-	
+
+	public void startServer() {
+		mainLoopRunnable.stop = false;
+		playerCommunication.start();
+		mainLoop.start();
+	}
+
+	public void stopServer() {
+		playerCommunication.stop();
+		mainLoopRunnable.terminate();
+	}
+
 	public String createCode(String id) {
-		long number = new Long(id);
-		long fullCode = System.currentTimeMillis() ^ number;
-		System.out.printf("ID: %s, Code: %s", id, Long.toHexString(fullCode).substring(0, 5));
+		Long number = new Long(id);
+		int fullCode = (int)(System.currentTimeMillis() ^ number);
+		System.out.printf("ID: %s, Code: %s%n", id, Integer.toHexString(fullCode)
+				.substring(0, 5));
 		return Long.toHexString(fullCode).substring(0, 5);
 	}
-	
+
 	public void handleRegisterMessage(String id, String[] message) {
-		if(waitingRegConf.containsKey(id)) {
-			if(waitingRegConf.get(id).equals(message[0].trim()) && message.length == 1) {
-				registered.add(id);
-				username_to_cell.put(message[1].trim(), id);
-				cell_to_username.put(id, message[1].trim());
-				String context = text.VERIFYTHANKS;
-				Message toSend = new Message(id, context);
-				playerCommunication.sendMessage(toSend);
-			} else {
-				//handle incorrect verification
-			}
-			//handle first message
+		//System.out.println("Called"); //debug message
+		//System.out.println(id + " " + Arrays.toString(message)); //debug message
+		if (waitingRegConf.containsKey(id)
+				&& waitingRegConf.get(id).equals(message[0].trim())
+				&& message.length == 2) {
+			registered.add(id);
+			username_to_cell.put(message[1].trim(), id);
+			cell_to_username.put(id, message[1].trim());
+			String context = text.VERIFYTHANKS;
+			Message toSend = new Message(id, context);
+			playerCommunication.sendMessage(toSend);
+		} else if (!waitingRegConf.containsKey(id)
+				&& message[0].toLowerCase().equals("verify")) {
 			String code = createCode(id);
 			waitingRegConf.put(id, code);
 			String context = text.VERIFYMSG.replace("{{code}}", code);
 			Message toSend = new Message(id, context);
 			playerCommunication.sendMessage(toSend);
 		}
+
 	}
-	
-	public class handleMessages implements Runnable {
+
+	public class HandleMessages implements Runnable {
 		public boolean stop = false;
-		
-		
-		public handleMessages() {
-			
+
+		public HandleMessages() {
+
 		}
-		
+
 		public void terminate() {
 			stop = true;
 		}
@@ -112,21 +118,24 @@ public class Server {
 			Message message;
 			String[] text;
 			String id;
-			while(!stop) {
-				while(!messages.isEmpty()) {
+			while (!stop) {
+				while (!messages.isEmpty()) {
+
 					message = messages.poll();
+					System.out.println("Message " + message.toString());
+
 					text = message.content.split(" ");
-					if(registered.contains(message.id)) {
-						
-					} else if(acceptingPlayers){
+					if (registered.contains(message.id)) {
+
+					} else if (acceptingPlayers) {
 						handleRegisterMessage(message.id, text);
 					}
 				}
 				messages = playerCommunication.receiveMessages(messages);
 			}
-			
+
 		}
-		
+
 	}
-	
+
 }
