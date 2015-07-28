@@ -54,7 +54,7 @@ public class Server {
 
 		mainLoopRunnable = new HandleMessages();
 		mainLoop = new Thread(mainLoopRunnable);
-		
+
 		text = new Text();
 
 	}
@@ -72,26 +72,32 @@ public class Server {
 
 	public String createCode(String id) {
 		Long number = new Long(id);
-		int fullCode = (int)(System.currentTimeMillis() ^ number);
-		System.out.printf("ID: %s, Code: %s%n", id, Integer.toHexString(fullCode)
-				.substring(0, 5));
+		int fullCode = (int) (System.currentTimeMillis() ^ number);
+		System.out.printf("ID: %s, Code: %s%n", id,
+				Integer.toHexString(fullCode).substring(0, 5));
 		return Long.toHexString(fullCode).substring(0, 5);
 	}
 
 	public void handleRegisterMessage(String id, String[] message) {
-		//System.out.println("Called"); //debug message
-		//System.out.println(id + " " + Arrays.toString(message)); //debug message
-		if (waitingRegConf.containsKey(id)
+		// System.out.println("Called"); //debug message
+		// System.out.println(id + " " + Arrays.toString(message)); //debug
+		// message
+		if (waitingRegConf.containsKey(id) 
 				&& waitingRegConf.get(id).equals(message[0].trim())
-				&& message.length == 2) {
+				&& message.length == 2
+				&& !cell_to_username.containsKey(id)
+				&& !username_to_cell.containsKey(message[1])) {
 			registered.add(id);
 			username_to_cell.put(message[1].trim(), id);
 			cell_to_username.put(id, message[1].trim());
+			waitingRegConf.remove(id);
 			String context = text.VERIFYTHANKS;
 			Message toSend = new Message(id, context);
 			playerCommunication.sendMessage(toSend);
+
 		} else if (!waitingRegConf.containsKey(id)
-				&& message[0].toLowerCase().equals("verify")) {
+				&& message[0].toLowerCase().equals("verify")
+				&& !cell_to_username.containsKey(id)) {
 			String code = createCode(id);
 			waitingRegConf.put(id, code);
 			String context = text.VERIFYMSG.replace("{{code}}", code);
