@@ -1,12 +1,11 @@
 package testing;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Date;
-import java.util.Scanner;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import org.apache.commons.io.input.Tailer;
 import org.apache.commons.io.input.TailerListener;
@@ -20,7 +19,6 @@ public class FileInout extends PlayerIn {
 	private File fileOut;
 	private ArrayDeque<Message> messagesIn;
 	private ArrayDeque<Message> messagesOut;
-	private Date date;
 	private Tailer tailer;
 	TailerListener listener;
 	private WriteFileOut writeRun;
@@ -31,7 +29,6 @@ public class FileInout extends PlayerIn {
 		this.fileOut = messageFileOut;
 		messagesIn = new ArrayDeque<>();
 		messagesOut = new ArrayDeque<>();
-		date = new Date();
 
 		listener = new Tailerhandler();
 
@@ -74,23 +71,28 @@ public class FileInout extends PlayerIn {
 	}
 
 	public class WriteFileOut implements Runnable {
-		private FileWriter file;
+		private Logger log;
+		private FileHandler file;
 		private Message temp;
 		private boolean running = true;
+		private SimpleFormatter formatter;
 
 		public WriteFileOut() throws IOException {
-			file = new FileWriter(fileOut, true);
+			file = new FileHandler(fileOut.getPath());
+			formatter = new SimpleFormatter();
+			log = Logger.getLogger(Thread.currentThread().getName());
+			log.addHandler(file);
+			log.setUseParentHandlers(false);
+			file.setFormatter(formatter);
+			
+			log.info("Server Started!");
+			
 			
 		}
 		
 		public void terminate() {
 			running = false;
-			try {
-				file.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			log.info("Stopping Server");
 		}
 
 		@Override
@@ -99,20 +101,15 @@ public class FileInout extends PlayerIn {
 				while (!messagesOut.isEmpty()) {
 					temp = messagesOut.poll();
 					if (temp != null) {
-						try {
-							file.write(String.format("%S    %S%n",
-									date.toString(), temp.toString()));
-							//System.out.printf("writing %S   %S\n",
-							//		date.getTime(), temp.toString());
-						} catch (IOException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-						finally {
-							//System.out.println("writing");
-							messagesSent++;
-							date = new Date();
-						}
+						
+						log.info(temp.toString());
+						//System.out.printf("writing %S   %S\n",
+						//		date.getTime(), temp.toString());
+					
+						//System.out.println("writing");
+						messagesSent++;
+						//date = new Date();
+						
 					}
 				}
 				try {
