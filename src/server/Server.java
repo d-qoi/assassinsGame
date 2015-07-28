@@ -26,10 +26,12 @@ public class Server {
 	private Map<String, String> waitingMsgConf;
 	private Set<String> leaving;
 	
-	
 	private Map<String, String> privilege;
 	
 	private PlayerIn playerCommunication;
+	private Text text;	
+	
+	public boolean acceptingPlayers = true;
 	
 	public Server() {
 		username_to_cell = new HashMap<>();
@@ -73,9 +75,22 @@ public class Server {
 	
 	public void handleRegisterMessage(String id, String[] message) {
 		if(waitingRegConf.containsKey(id)) {
-			if(waitingRegConf.get(id).equals(message[0].trim())) {
-				
+			if(waitingRegConf.get(id).equals(message[0].trim()) && message.length == 1) {
+				registered.add(id);
+				username_to_cell.put(message[1].trim(), id);
+				cell_to_username.put(id, message[1].trim());
+				String context = text.VERIFYTHANKS;
+				Message toSend = new Message(id, context);
+				playerCommunication.sendMessage(toSend);
+			} else {
+				//handle incorrect verification
 			}
+			//handle first message
+			String code = createCode(id);
+			waitingRegConf.put(id, code);
+			String context = text.VERIFYMSG.replace("{{code}}", code);
+			Message toSend = new Message(id, context);
+			playerCommunication.sendMessage(toSend);
 		}
 	}
 	
@@ -103,7 +118,7 @@ public class Server {
 					text = message.content.split(" ");
 					if(registered.contains(message.id)) {
 						
-					} else {
+					} else if(acceptingPlayers){
 						handleRegisterMessage(message.id, text);
 					}
 				}
