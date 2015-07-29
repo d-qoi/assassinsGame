@@ -1,6 +1,7 @@
 package server;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -14,6 +15,8 @@ import playerIn.Message;
 import playerIn.PlayerIn;
 
 public class Server {
+	
+	public File configFile = new File("config.conf");
 
 	private Map<String, String> username_to_cell;
 	private Map<String, String> cell_to_username;
@@ -26,7 +29,7 @@ public class Server {
 	private Map<String, String> waitingMsgConf;
 	private Set<String> leaving;
 
-	private Map<String, String> privilege;
+	private Map<String, String> admins;
 
 	private PlayerIn playerCommunication;
 	private Text text;
@@ -48,7 +51,7 @@ public class Server {
 		waitingMsgConf = new HashMap<>();
 		leaving = new HashSet<>();
 
-		privilege = new HashMap<>();
+		admins = new HashMap<>();
 
 		this.playerCommunication = playerCommunication;
 
@@ -60,6 +63,12 @@ public class Server {
 	}
 
 	public void startServer() {
+		try {
+			readInConfig();
+		} catch (FileNotFoundException e) {
+			System.out.println("Config not found");
+			//e.printStackTrace();
+		}
 		mainLoopRunnable.stop = false;
 		playerCommunication.start();
 		mainLoop.start();
@@ -69,23 +78,50 @@ public class Server {
 		playerCommunication.stop();
 		mainLoopRunnable.terminate();
 	}
+	
+	public void readInConfig() throws FileNotFoundException {
+		Scanner scan = new Scanner(configFile);
+		while(scan.hasNext()) {
+			String[] line = scan.nextLine().toLowerCase().split(",");
+			if(line[0].contains("#"))
+				continue;
+			for(int i = 0; i<line.length; i++) {
+				line[i] = line[i].trim();
+			}
+			if(line[0].equals("admin")) {
+				if(line.length == 4) {
+					this.registered.add(line[1]);
+					this.username_to_cell.put(line[2], line[1]);
+					this.cell_to_username.put(line[1], line[2]);
+					this.admins.put(line[1], line[3]);
+				} else {
+					System.out.println("Admin line incorrect " + Arrays.toString(line));
+				}
+			} else if(line[0].equals("register")) {
+				
+			}
+		}
+		scan.close();
+		
+	}
 
-	public String createCode(String id) {
-		Long number = new Long(id);
-		int fullCode = (int) (System.currentTimeMillis() ^ number);
-		System.out.printf("ID: %s, Code: %s%n", id,
-				Integer.toHexString(fullCode).substring(0, 5));
-		return Long.toHexString(fullCode).substring(0, 5);
+	public String createCode() {
+		String out = "";
+		for (int i = 0; i < 6; i++) {
+			out = out
+					+ text.APLHANUMERIC.charAt((int) Math.random()
+							* text.APLHANUMERIC.length());
+		}
+		return out;
 	}
 
 	public void handleRegisterMessage(String id, String[] message) {
 		// System.out.println("Called"); //debug message
 		// System.out.println(id + " " + Arrays.toString(message)); //debug
 		// message
-		if (waitingRegConf.containsKey(id) 
+		if (waitingRegConf.containsKey(id)
 				&& waitingRegConf.get(id).equals(message[0].trim())
-				&& message.length == 2
-				&& !cell_to_username.containsKey(id)
+				&& message.length == 2 && !cell_to_username.containsKey(id)
 				&& !username_to_cell.containsKey(message[1])) {
 			registered.add(id);
 			username_to_cell.put(message[1].trim(), id);
@@ -98,7 +134,7 @@ public class Server {
 		} else if (!waitingRegConf.containsKey(id)
 				&& message[0].toLowerCase().equals("verify")
 				&& !cell_to_username.containsKey(id)) {
-			String code = createCode(id);
+			String code = createCode();
 			waitingRegConf.put(id, code);
 			String context = text.VERIFYMSG.replace("{{code}}", code);
 			Message toSend = new Message(id, context);
